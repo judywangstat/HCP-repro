@@ -8,45 +8,38 @@ Each script defines a local repository path near the top of the file. Please upd
 
 ---
 
-## Table scripts
+## 📊 Table scripts
 
-- `reproduce_table2_cd4.R`  
-  Reproduce Table 2 based on the CD4 dataset.
-
-- `reproduce_tableS3_gallstones.R`  
-  Reproduce Table S3 based on the gallstones dataset.
-
----
-
-## Figure data-generation scripts
-
-- `reproduce_figure2_cd4_data.R`  
-  Generate data for Figure 2 (CD4 prediction bands).
-
-- `reproduce_figure3_cd4_density_data.R`  
-  Generate data for Figure 3 (CD4 conditional density).
-
-- `reproduce_figureS11_gallstones_data.R`  
-  Generate data for Figure S11 (gallstones prediction bands).
+| Script | Output |
+|--------|--------|
+| `reproduce_table2_cd4.R` | Table 2 (CD4 dataset) |
+| `reproduce_tableS3_gallstones.R` | Table S3 (gallstones dataset) |
 
 ---
 
-## Figure plotting scripts
+## 📦 Figure data-generation scripts
 
-- `plot_figure2_cd4.R`  
-  Plot Figure 2 (CD4 prediction bands).
-
-- `plot_figure3_cd4_density.R`  
-  Plot Figure 3 (CD4 conditional density).
-
-- `plot_figureS11_gallstones.R`  
-  Plot Figure S11 (gallstones prediction bands).
+| Script | Output |
+|--------|--------|
+| `reproduce_figure2_cd4_data.R` | Data for Figure 2 (CD4 prediction bands) |
+| `reproduce_figure3_cd4_density_data.R` | Data for Figure 3 (CD4 conditional density) |
+| `reproduce_figureS11_gallstones_data.R` | Data for Figure S11 (gallstones prediction bands) |
 
 ---
 
-## Notes
+## 📈 Figure plotting scripts
 
-- Scripts with names beginning with `reproduce_` generate intermediate data files.
-- Scripts with names beginning with `plot_` generate final figures (PDF format).
+| Script | Output |
+|--------|--------|
+| `plot_figure2_cd4.R` | Figure 2 (CD4 prediction bands) |
+| `plot_figure3_cd4_density.R` | Figure 3 (CD4 conditional density) |
+| `plot_figureS11_gallstones.R` | Figure S11 (gallstones prediction bands) |
+
+---
+
+## 📝 Notes
+
+- Scripts beginning with `reproduce_` generate intermediate data files.
+- Scripts beginning with `plot_` generate final figures (PDF format).
 - All outputs are saved in the `results/` folder.
 - Tables and figures with an `S` prefix refer to supplementary materials.
