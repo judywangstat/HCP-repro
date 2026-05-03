@@ -34,7 +34,9 @@ It includes all code and data required to reproduce the simulation studies and r
 
 - R >= 4.2
 
-- The main R packages used in the reproducibility scripts include: doParallel, doRNG, dplyr, foreach, gbm, ggplot2, ggh4x, grf, gridExtra, lme4, MASS, merTools, quantreg, quantregForest, randomForest, tidyr, viridis, xgboost
+- The main R packages used in the reproducibility scripts include:
+  
+  doParallel, doRNG, dplyr, foreach, gbm, ggplot2, ggh4x, grf, gridExtra, lme4, MASS, merTools, quantreg, quantregForest, randomForest, tidyr, viridis, xgboost
 
 - Base/recommended R packages: parallel, stats
 
@@ -89,7 +91,7 @@ Detailed descriptions of all scripts are provided in `simulation/README.md` and 
 
 ## 📊 Simulation results
 
-Note: Tables and figures with an "S" prefix (e.g., Table S1, Figure S3) correspond to the supplementary materials, while those without the prefix correspond to the main text of the paper.
+**Note:** Tables and figures with an "S" prefix correspond to supplementary materials; those without the prefix correspond to the main paper.
 
 ### Tables
 
@@ -107,11 +109,11 @@ Note: Tables and figures with an "S" prefix (e.g., Table S1, Figure S3) correspo
 
 | Figure | Data script | Plot script |
 |--------|------------|-------------|
-| Figure S1–S3 | `reproduce_figureS1S2S3_data.R` | `plot_figureS1S2S3.R` |
-| Figure S4–S6 | `reproduce_figureS4S5S6_data.R` | `plot_figureS4S5S6.R` |
-| Figure S7 | `reproduce_figureS7_data.R` | `plot_figureS7.R` |
-| Figure S8–S9 | `reproduce_figureS8S9_data.R` | `plot_figureS8S9.R` |
-| Figure S10 | `reproduce_figureS10_data.R` | `plot_figureS10.R` |
+| Figure S1–S3 | `simulation/reproduce_figureS1S2S3_data.R` | `simulation/plot_figureS1S2S3.R` |
+| Figure S4–S6 | `simulation/reproduce_figureS4S5S6_data.R` | `simulation/plot_figureS4S5S6.R` |
+| Figure S7 | `simulation/reproduce_figureS7_data.R` | `simulation/plot_figureS7.R` |
+| Figure S8–S9 | `simulation/reproduce_figureS8S9_data.R` | `simulation/plot_figureS8S9.R` |
+| Figure S10 | `simulation/reproduce_figureS10_data.R` | `simulation/plot_figureS10.R` |
 
 ---
 
@@ -131,9 +133,9 @@ Note: Tables and figures with an "S" prefix (e.g., Table S1, Figure S3) correspo
 
 | Figure | Data script | Plot script |
 |--------|------------|-------------|
-| Figure 2 (CD4 prediction bands) | `reproduce_figure2_cd4_data.R` | `plot_figure2_cd4.R` |
-| Figure 3 (CD4 conditional density) | `reproduce_figure3_cd4_density_data.R` | `plot_figure3_cd4_density.R` |
-| Figure S11 (gallstones prediction bands) | `reproduce_figureS11_gallstones_data.R` | `plot_figureS11_gallstones.R` |
+| Figure 2 (CD4 prediction bands) | `real_data/reproduce_figure2_cd4_data.R` | `real_data/plot_figure2_cd4.R` |
+| Figure 3 (CD4 conditional density) | `real_data/reproduce_figure3_cd4_density_data.R` | `real_data/plot_figure3_cd4_density.R` |
+| Figure S11 (gallstones prediction bands) | `real_data/reproduce_figureS11_gallstones_data.R` | `real_data/plot_figureS11_gallstones.R` |
 
 ---
 
