@@ -133,9 +133,9 @@ Detailed descriptions of all scripts are provided in `simulation/README.md` and 
 
 | Figure | Data script | Plot script |
 |--------|------------|-------------|
-| Figure 2 (CD4 prediction bands) | `real_data/reproduce_figure2_cd4_data.R` | `real_data/plot_figure2_cd4.R` |
-| Figure 3 (CD4 conditional density) | `real_data/reproduce_figure3_cd4_density_data.R` | `real_data/plot_figure3_cd4_density.R` |
-| Figure S11 (gallstones prediction bands) | `real_data/reproduce_figureS11_gallstones_data.R` | `real_data/plot_figureS11_gallstones.R` |
+| Figure 2 | `real_data/reproduce_figure2_cd4_data.R` | `real_data/plot_figure2_cd4.R` |
+| Figure 3 | `real_data/reproduce_figure3_cd4_density_data.R` | `real_data/plot_figure3_cd4_density.R` |
+| Figure S11 | `real_data/reproduce_figureS11_gallstones_data.R` | `real_data/plot_figureS11_gallstones.R` |
 
 ---
 
