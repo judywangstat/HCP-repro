@@ -1,9 +1,8 @@
 # Simulation scripts
 
-These scripts reproduce the simulation results for **Hierarchical Conformal
-Prediction for Clustered Data with Missing Responses**. Run from the repository
-root, or set `HCP_REPO_DIR`; each script exposes a user-adjustable `repo_dir`.
-All result files below are in `results/`.
+Simulation scripts for **Hierarchical Conformal Prediction for Clustered Data
+with Missing Responses**. Run from the repository root or set `HCP_REPO_DIR`.
+Each script has a `repo_dir` setting. Results are saved in `results/`.
 
 ## 📊 Tables
 
@@ -17,8 +16,8 @@ All result files below are in `results/`.
 
 Table S.4 is reproduced by `real_data/reproduce_tableS4_gallstones.R`.
 Run a table with `Rscript simulation/<script-name>.R --run`. Sourcing a table
-script defines functions without starting its full experiment. Each table has a
-named runner with replicate-count and worker-count arguments for small checks.
+script defines functions without starting the simulation. For small checks,
+set the replicate and worker counts in its runner function.
 
 ## 📦 Figure data and plotting
 
@@ -30,35 +29,33 @@ named runner with replicate-count and worker-count arguments for small checks.
 | Figures S.8–S.9 | `reproduce_figureS8S9_data.R` | `plot_figureS8S9.R` | `figureS8_sensitivity_B_data.csv`, `figureS9_sensitivity_S_data.csv` → corresponding PDFs |
 | Figure S.10 | `reproduce_figureS10_data.R` | `plot_figureS10.R` | `figureS10_<method>_final_mat_n500.csv` → `figureS10_n500.pdf` |
 
-Run a data script first, then its plot script. Figure S.10 data generation requires
-`--run`; it computes HCP, DWR, LC, LMEM, and Oracle together on each of the same
-1,000 replicate datasets per DGP and writes all five method CSVs. Alternatively,
-source the script and call `run_figureS10_data()`. The plot reads these five
-canonical method files and uses 40 groups of 125 pointwise rows, grouping seed
-123, the manuscript method order, and a 6.5 × 9.5 inch PDF. Coverage labels run
-from 0.50 to 1.00; length panels scale to their data. Missing group means are not
-imputed.
+Run the data script first, then the plotting script. For Figure S.10, the data
+script runs HCP, DWR, LC, LMEM, and Oracle on the same 1,000 replicate datasets
+and held-out subjects for each DGP, with n=500. Use `--run`, or source the script
+and call `run_figureS10_data()`. Then run `plot_figureS10.R`, which reads the five
+method CSV files.
 
 ## ⚙️ Designs and reproducibility
 
 - Table 1, Tables S.1/S.3, and Figure S.10 compare HCP, DWR, LC, LMEM, and Oracle.
-  They use the same five DGPs, with 1,000 replicate seeds per setting.
-- Table S.1 samples each cluster size independently from 5/50 with probability
-  1/2. Its dedicated `R/imbalanced_covariates.R` helper repeats each of the five
-  X1 values equally often and permutes their order. Outcome and missingness
-  generation use `R/simulation_dgp.R`; balanced simulations keep five rows per subject.
-- These four comparisons use `R/hcp_finite_region.R`, with the same finite
-  candidate domain, density fits, weights, splits, B/S, and calibration settings
-  specified by their replicate driver. Table S.2, Tables S.5/S.6, and other figures
-  use their documented HCP evaluators and tuning settings.
-- Table 1 and Tables S.1/S.3 use L'Ecuyer-CMRG for data generation. Figure S.10
-  uses Mersenne-Twister. Seeds are 1–1000. LMEM predictive draws use a separate
-  L'Ecuyer stream, restored after each call; Oracle is deterministic.
-- Table 1/Table S.1/Figure S.10 use weight cap 30. Table S.3 uses its documented
-  sample-size-dependent cap. No parameter is chosen from the resulting coverage.
-- The named result scripts expose the design explicitly. Shared loading,
-  method diagnostics, and parallel iteration reside in `R/`; there is no separate
-  configuration framework. Optional audit outputs contain per-method failures,
-  warnings, valid counts, fit diagnostics, and pointwise results.
+  All use the paper's five DGPs and 1,000 replicates per setting.
+- Table S.1 samples cluster sizes independently: 5 or 50, each with probability
+  1/2. `R/imbalanced_covariates.R` uses the same five X1 values for both sizes.
+  Each appears once for m=5 and ten times for m=50, in random order.
+  `R/simulation_dgp.R` generates outcomes and missingness. Balanced simulations
+  have five rows per subject.
+- Seeds are 1–1000. Table 1 and Tables S.1/S.3 use L'Ecuyer-CMRG for data
+  generation; Figure S.10 uses Mersenne-Twister.
+- Table 1, Table S.1, and Figure S.10 use weight cap 30. Table S.3 uses the
+  sample-size-dependent cap in its script.
+
+The four comparisons use `R/hcp_finite_region.R`. It keeps all components where
+p > 0.1, using the fitted density, weights, splits, B/S, and tie/rank/CCT rules.
+The finite domain runs from the minimum to the maximum response among non-test
+subjects, including simulated responses marked missing. Table S.2, Tables
+S.5/S.6, and other figures use the grid evaluators in their scripts.
+
+Simulation LMEM prediction uses 500 draws from a separate L'Ecuyer stream and
+restores the caller's RNG state. Oracle is deterministic.
 
 Minor last-digit differences may occur when reproducing the numerical summaries.

@@ -1,6 +1,6 @@
 # Reproducibility Materials
 
-This repository contains code, input data, and numerical results for:
+Code, data, and numerical results for:
 
 **Hierarchical Conformal Prediction for Clustered Data with Missing Responses**
 
@@ -14,7 +14,7 @@ and Figures S.1–S.11 belong to the Supplementary Materials.
 | Folder | Contents |
 |--------|----------|
 | [R/](R/README.md) | Method implementations, data preparation, and replicate-level helpers. |
-| [simulation/](simulation/README.md) | Clearly named scripts for each simulation table or figure. |
+| [simulation/](simulation/README.md) | Scripts for the simulation tables and figures. |
 | [real_data/](real_data/README.md) | CD4 and gallstones reproduction and plotting scripts. |
 | [results/](results/) | Manuscript numerical tables, figure data, and PDF figures. |
 | [data/](data/) | CD4 and gallstones input datasets. |
@@ -35,26 +35,25 @@ environments. Seeds and RNG conventions are specified in the scripts.
 
 ## 🚀 How to reproduce a result
 
-The supplied results can be viewed directly in `results/`. To run the code:
+Results are available in `results/`.
 
-1. Set the repository location. Each script has a user-adjustable `repo_dir`:
+1. Run from the repository root, or set `HCP_REPO_DIR` to the repository path.
+   Each script uses:
 
    ```r
    repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
    ```
 
-   Run from the repository root, or set `HCP_REPO_DIR` to its absolute path.
-
-2. Find the target table/figure in the tables below and run its script. For example:
+2. To reproduce Table 1:
 
    ```sh
    Rscript simulation/reproduce_table1.R --run
    ```
 
-   This writes `results/table1_final_results_missing20.csv`. The table scripts
-   and Figure S.10 data script define functions when sourced; `--run` starts
-   their full calculation. Full simulations use 1,000 replicates per setting.
-   A small check can be run without overwriting supplied results:
+   This writes `results/table1_final_results_missing20.csv`. Table scripts and
+   the Figure S.10 data script can also be sourced without starting a full run.
+   Use `--run` for the full calculation. Full simulations use 1,000 replicates per setting.
+   For a small check without overwriting results:
 
    ```r
    source("simulation/reproduce_table1.R")
@@ -62,20 +61,18 @@ The supplied results can be viewed directly in `results/`. To run the code:
                        sample_sizes = 100, scenarios = "Homo", output_file = NULL)
    ```
 
-3. For a figure, run the data script and then the plotting script. For example,
-   to reproduce Figure S.10 from start to finish:
+3. Run the data script first, then the plotting script. For Figure S.10:
 
    ```sh
    Rscript simulation/reproduce_figureS10_data.R --run
    Rscript simulation/plot_figureS10.R
    ```
 
-   To redraw a figure from its supplied CSV files, run only its plot script.
+   To redraw a figure from the saved CSV files, run only the plotting script.
 
-The Figure S.10 data script computes HCP, DWR, LC, LMEM, and Oracle together on
-the same simulated dataset and held-out subject in each replicate: five DGPs,
-n=500, and seeds 1–1000 per DGP. It writes all five method CSVs read by the plot
-script.
+For Figure S.10, all five methods use the same simulated dataset and held-out
+subject within each replicate. The data script writes the five CSV files used
+by the plotting script.
 
 ## 📊 Main-paper results
 
@@ -112,29 +109,21 @@ Figure 1 is the manuscript's method schematic and has no numerical reproduction 
 
 ## Method implementations and numerical conventions
 
-- **HCP:** [R/hcp_region.R](R/hcp_region.R) fits the score rule.
-  [R/hcp_finite_region.R](R/hcp_finite_region.R) represents that rule as all
-  accepted components on the specified finite domain for Table 1, Tables S.1/S.3,
-  and Figure S.10. The simulation domain is the minimum and maximum response
-  among non-test subjects, including simulated responses whose observation
-  indicator is zero. Real-data and other supplementary HCP outputs use their
-  documented grid evaluators.
-- **DWR / LC:** simulations use [R/dwr_region.R](R/dwr_region.R) and
-  [R/lc_region.R](R/lc_region.R); real-data analyses use
+- **HCP:** [R/hcp_region.R](R/hcp_region.R) implements HCP.
+  [R/hcp_finite_region.R](R/hcp_finite_region.R) constructs the finite-domain
+  sets used for Table 1, Tables S.1/S.3, and Figure S.10.
+- **DWR / LC:** simulation code is in [R/dwr_region.R](R/dwr_region.R) and
+  [R/lc_region.R](R/lc_region.R); real-data versions are in
   [R/dwr_region_realdata.R](R/dwr_region_realdata.R) and
   [R/lc_region_realdata.R](R/lc_region_realdata.R).
-- **LMEM:** [R/lmem_region.R](R/lmem_region.R) is the single implementation for
-  simulations and real data. Simulation fits have a fixed intercept, four fixed
-  slopes, and four independent random slopes. Real-data fits use an independent
-  random intercept and time slope. New-subject intervals include fixed-effect
-  estimation uncertainty, random-effect variation, and residual error.
-- **Oracle:** [R/oracle_region.R](R/oracle_region.R) is the true conditional HPD
-  benchmark. It integrates over the new subject's random coefficients and retains
-  every component of the density level set.
-- HCP and Oracle lengths are **total Lebesgue measure across represented
-  components**, rather than convex-hull width. Table coverage and length are
-  averaged within each test subject and then across subjects/replicates. Empty
-  DWR/LC regions have coverage zero and missing length; length means omit these
-  missing values, as specified by the evaluation helpers.
+- **LMEM:** [R/lmem_region.R](R/lmem_region.R) is used for simulations and real
+  data. Simulation fits use a fixed intercept, four fixed slopes, and four
+  independent random slopes. Real-data fits use an independent random intercept
+  and time slope.
+- **Oracle:** [R/oracle_region.R](R/oracle_region.R) implements the true
+  conditional HPD benchmark and keeps all components of disconnected sets.
+- For disconnected HCP and Oracle sets, length is the total length of all
+  components. Coverage and length are averaged within each test subject and then
+  across subjects or replicates.
 
-Details of inputs, models, RNG, and helper files are in the folder README files.
+See the folder README files for model and RNG settings.
