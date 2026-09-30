@@ -1,6 +1,6 @@
 # ============================================================
 # Reproduce Figures S.4--S.6 Data
-# HCPclust-repro
+# HCP-repro
 #
 # This script generates simulation data for Figures S.4--S.6.
 # These figures evaluate local coverage and local length over a
@@ -33,7 +33,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 r_dir <- file.path(repo_dir, "R")
 results_dir <- file.path(repo_dir, "results")
 

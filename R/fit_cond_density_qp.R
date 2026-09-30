@@ -14,9 +14,9 @@
 #'   \code{length(taus)}.
 #' @param method Quantile engine: \code{"rq"}, \code{"qrf"}, or \code{"grf"}.
 #'   \code{"qrf"} uses \code{quantregForest}; \code{"grf"} uses
-#'   \code{grf::quantile_forest()} for legacy compatibility.
+#'   \code{grf::quantile_forest()}.
 #' @param enforce_monotone Logical; if TRUE, apply isotonic adjustment instead
-#'   of the original crossing-removal rule.
+#'   of the crossing-removal rule.
 #' @param tail_decay Logical; if TRUE, add decaying tail points for interpolation.
 #' @param num_extra_points Number of tail points on each side.
 #' @param decay_factor Tail decay factor.
@@ -293,7 +293,7 @@ fit_cond_density_qp <- function(
   )
   
   # ---------------------------------------------------------------------------
-  # Step 4: old-style matrix density helper
+  # Step 4: matrix density helper
   # ---------------------------------------------------------------------------
   dens_y_given_x_matrix <- function(
     y_val,

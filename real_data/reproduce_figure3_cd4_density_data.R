@@ -1,7 +1,7 @@
 # ============================================================
 # Reproduce Figure 3 Data
 # CD4 conditional density example
-# HCPclust-repro
+# HCP-repro
 #
 # This script generates leave-one-subject-out conditional density
 # estimates for the first 100 CD4 subjects. The saved output is
@@ -27,7 +27,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 r_dir <- file.path(repo_dir, "R")
 data_dir <- file.path(repo_dir, "data")
 results_dir <- file.path(repo_dir, "results")
@@ -56,7 +56,7 @@ n_grid <- 200
 b_true <- 5
 dens_taus <- (1:(2^b_true - 1)) / (2^b_true)
 
-# Use the same density-tail decay factor as in the original Figure 3 analysis.
+# Density-tail decay factor for the Figure 3 conditional-density estimates.
 density_decay_factor <- 0.3
 
 # ------------------------------------------------------------

@@ -1,21 +1,21 @@
 # ============================================================
-# Reproduce Table S.4 and Table S.5
+# Reproduce Table S.5 and Table S.6
 # Score-comparison simulation study
-# HCPclust-repro
+# HCP-repro
 #
 # This script reproduces the score-comparison tables in the
 # supplementary materials.
 #
-# Table S.4: 20% missing responses.
-# Table S.5: 50% missing responses.
+# Table S.5: 20% missing responses.
+# Table S.6: 50% missing responses.
 #
 # The comparison is between:
 #   1. HCP with density score
 #   2. HCP with residual score
 #
 # Output:
-#   results/tableS4_score_compare_missing20.csv
-#   results/tableS5_score_compare_missing50.csv
+#   results/tableS5_score_compare_missing20.csv
+#   results/tableS6_score_compare_missing50.csv
 #
 # Note:
 #   Update repo_dir below to the local path of this repository
@@ -31,7 +31,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 r_dir <- file.path(repo_dir, "R")
 results_dir <- file.path(repo_dir, "results")
 
@@ -271,6 +271,9 @@ run_score_compare_parallel <- function(
       )
     }
     
+    if (is.null(dim(res_mat))) {
+      res_mat <- matrix(res_mat, nrow = 1L, dimnames = list(NULL, names(res_mat)))
+    }
     num_failed <- sum(!stats::complete.cases(res_mat))
     cat(sprintf(
       "Completed %s: n = %d, scenario = %s with %d failed replicates\n",
@@ -304,51 +307,53 @@ run_score_compare_parallel <- function(
 }
 
 # ------------------------------------------------------------
-# Table S.4 settings: 20% missing responses
-# ------------------------------------------------------------
-train_frac_rule_s4 <- function(n, scenario) {
-  0.3
-}
-
-weight_cap_rule_s4 <- function(n, scenario) {
-  30
-}
-
-# ------------------------------------------------------------
-# Table S.5 settings: 50% missing responses
+# Table S.5 settings: 20% missing responses
 # ------------------------------------------------------------
 train_frac_rule_s5 <- function(n, scenario) {
   0.3
 }
 
 weight_cap_rule_s5 <- function(n, scenario) {
+  30
+}
+
+# ------------------------------------------------------------
+# Table S.6 settings: 50% missing responses
+# ------------------------------------------------------------
+train_frac_rule_s6 <- function(n, scenario) {
+  0.3
+}
+
+weight_cap_rule_s6 <- function(n, scenario) {
   pmin(28, 2.2 * (n / 100)^1.72)
 }
 
 # ------------------------------------------------------------
-# Run Table S.4
-# ------------------------------------------------------------
-results_s4 <- run_score_compare_parallel(
-  table_name = "Table S.4",
-  num_simulations_run = 1000,
-  num_cores = 7,
-  beta = c(3, 0, 2, 2, 2),
-  train_frac_rule = train_frac_rule_s4,
-  weight_cap_rule = weight_cap_rule_s4,
-  output_file = file.path(results_dir, "tableS4_score_compare_missing20.csv"),
-  run_sanity_check = FALSE
-)
-
-# ------------------------------------------------------------
 # Run Table S.5
 # ------------------------------------------------------------
+if (sys.nframe() == 0L && "--run" %in% commandArgs(TRUE)) {
 results_s5 <- run_score_compare_parallel(
   table_name = "Table S.5",
   num_simulations_run = 1000,
   num_cores = 7,
-  beta = c(0, 0, 2, 2, 2),
+  beta = c(3, 0, 2, 2, 2),
   train_frac_rule = train_frac_rule_s5,
   weight_cap_rule = weight_cap_rule_s5,
-  output_file = file.path(results_dir, "tableS5_score_compare_missing50.csv"),
+  output_file = file.path(results_dir, "tableS5_score_compare_missing20.csv"),
   run_sanity_check = FALSE
 )
+
+# ------------------------------------------------------------
+# Run Table S.6
+# ------------------------------------------------------------
+results_s6 <- run_score_compare_parallel(
+  table_name = "Table S.6",
+  num_simulations_run = 1000,
+  num_cores = 7,
+  beta = c(0, 0, 2, 2, 2),
+  train_frac_rule = train_frac_rule_s6,
+  weight_cap_rule = weight_cap_rule_s6,
+  output_file = file.path(results_dir, "tableS6_score_compare_missing50.csv"),
+  run_sanity_check = FALSE
+)
+}

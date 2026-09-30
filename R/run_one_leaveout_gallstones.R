@@ -10,9 +10,9 @@
 #' using HCP, DWR, LC, and LMEM on the remaining subjects, and evaluates either
 #' pointwise or simultaneous coverage on the held-out subject.
 #'
-#' The outcome column \code{Y} is used for model fitting, preserving the original
+#' The outcome column \code{Y} is used for model fitting with its observed
 #' missingness pattern. The column \code{Y_eval} is used only as the evaluation
-#' target for the held-out subject, following the original gallstones scripts.
+#' target for the held-out subject.
 #'
 #' @param test_id Subject identifier to hold out.
 #' @param dat Gallstones data frame returned by \code{impute_gallstones_outcomes()}.
@@ -138,7 +138,7 @@ run_one_leaveout_gallstones <- function(
   # ---------------------------------------------------------------------------
   # Step 3: DWR
   # ---------------------------------------------------------------------------
-  res_dwr <- dwr_region_legacy(
+  res_dwr <- dwr_region_realdata(
     dat = dat_sample,
     id_col = "id",
     y_col = "Y",
@@ -160,7 +160,7 @@ run_one_leaveout_gallstones <- function(
   # ---------------------------------------------------------------------------
   # Step 4: LC
   # ---------------------------------------------------------------------------
-  res_lc <- lc_region_legacy(
+  res_lc <- lc_region_realdata(
     dat = dat_sample,
     id_col = "id",
     y_col = "Y",
@@ -186,19 +186,8 @@ run_one_leaveout_gallstones <- function(
   # Step 5: LMEM
   # ---------------------------------------------------------------------------
   res_lmem <- lmem_region(
-    dat = dat_sample,
-    id_col = "id",
-    y_col = "Y",
-    delta_col = "delta",
-    x_cols = x_cols,
-    x_test = x_test,
-    y_grid = y_grid,
-    alpha = alpha,
-    fixed_formula = "T1 + T2 + T3 + Treat",
-    random_formula = "(1 | id)",
-    n_sims = 1000,
-    pred_which = "full",
-    seed = seed
+    dat = dat_sample, x_test = dat_test, setting = "gallstones",
+    alpha = alpha, n_sims = 10000L, seed = seed
   )
   
   eval_lmem <- evaluate_interval_region(res_lmem, y_true)

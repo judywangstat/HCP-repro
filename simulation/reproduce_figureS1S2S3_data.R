@@ -1,6 +1,6 @@
 # ============================================================
 # Reproduce Figures S.1--S.3 Data
-# HCPclust-repro
+# HCP-repro
 #
 # This script generates conditional-coverage simulation data
 # for Figures S.1--S.3.
@@ -31,7 +31,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 r_dir <- file.path(repo_dir, "R")
 results_dir <- file.path(repo_dir, "results")
 

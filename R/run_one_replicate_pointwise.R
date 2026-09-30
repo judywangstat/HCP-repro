@@ -30,8 +30,9 @@
 #' @param beta Logistic regression coefficients for the missingness mechanism.
 #' @param weight_cap Optional truncation level for inverse-propensity weights.
 #'   If \code{NULL}, the default rule \code{get_max_wt(n)} is used.
-#' @param oracle_B_mc Number of Monte Carlo samples used for Oracle intervals.
-#' @param lmem_n_sims Number of simulations used by \code{merTools::predictInterval()}.
+#' @param lmem_n_sims Number of new-subject predictive draws for LMEM.
+#' @param cluster_size_design Balanced size 5 or independent sizes 5/50.
+#' @param method_names Methods to compute; skipped methods consume no RNG.
 #' @param seed Optional random seed for reproducibility.
 #'
 #' @return A numeric matrix with one row per test observation and columns:
@@ -61,13 +62,17 @@ run_one_replicate_pointwise <- function(
     x_sigma = diag(1, 4),
     beta = c(3, 0, 2, 2, 2),
     weight_cap = NULL,
-    oracle_B_mc = 5000L,
     lmem_n_sims = 500L,
-    seed = NULL
+    seed = NULL,
+    return_details = FALSE,
+    cluster_size_design = c("balanced", "imbalanced"),
+    method_names = simulation_methods()
 ) {
   # ---------------------------------------------------------------------------
   # Step 0: Basic input checks
   # ---------------------------------------------------------------------------
+  cluster_size_design <- match.arg(cluster_size_design)
+  if (!length(method_names) || anyDuplicated(method_names) || !all(method_names %in% simulation_methods())) stop("Invalid method_names.")
   valid_scenarios <- c("Homo", "Heter", "Asym", "Bimo", "Bimo-fix")
   if (!scenario %in% valid_scenarios) {
     stop("scenario must be one of: ", paste(valid_scenarios, collapse = ", "))
@@ -103,11 +108,10 @@ run_one_replicate_pointwise <- function(
     }
   }
   
-  oracle_B_mc <- as.integer(oracle_B_mc)
-  if (!is.finite(oracle_B_mc) || oracle_B_mc < 1L) {
-    stop("oracle_B_mc must be a positive integer.")
-  }
-  
+  if (!isTRUE(all.equal(as.numeric(theta_mean), rep(2,4))) ||
+      !isTRUE(all.equal(as.matrix(theta_sigma), diag(1,4))))
+    stop("Oracle requires theta_mean=rep(2,4), theta_sigma=I4 DGP.")
+
   lmem_n_sims <- as.integer(lmem_n_sims)
   if (!is.finite(lmem_n_sims) || lmem_n_sims < 1L) {
     stop("lmem_n_sims must be a positive integer.")
@@ -120,15 +124,17 @@ run_one_replicate_pointwise <- function(
   # ---------------------------------------------------------------------------
   # Step 1: Generate one clustered dataset under the specified DGP
   # ---------------------------------------------------------------------------
+  cluster_sizes <- if (cluster_size_design == "imbalanced") sample(c(5L, 50L), n, replace = TRUE) else rep(5L, n)
   dat <- generate_simulation_data(
     n = n,
-    m = 5,
+    m = cluster_sizes,
     scenario = scenario,
     theta_mean = theta_mean,
     theta_sigma = theta_sigma,
     x_mean = x_mean,
     x_sigma = x_sigma,
-    beta = beta
+    beta = beta,
+    covariate_generator = if (cluster_size_design == "imbalanced") generate_imbalanced_covariates else generate_subject_covariates
   )
   
   # ---------------------------------------------------------------------------
@@ -162,9 +168,9 @@ run_one_replicate_pointwise <- function(
   weight_cap_use <- if (is.null(weight_cap)) get_max_wt(n) else weight_cap
   
   # ---------------------------------------------------------------------------
-  # Step 5: Apply HCP
-  # ---------------------------------------------------------------------------
-  res_hcp <- hcp_region(
+  # Evaluate each method separately; successful peers survive any method failure.
+  methods <- list()
+  if ("HCP" %in% method_names) methods$HCP <- run_simulation_method("HCP", function(state) hcp_finite_region(
     dat = dat_sample,
     id_col = "id",
     y_col = "Y",
@@ -183,18 +189,10 @@ run_one_replicate_pointwise <- function(
     prop_method = "logistic",
     weight_cap = weight_cap_use,
     seed = seed
-  )
-  
-  if (scenario %in% c("Bimo", "Bimo-fix")) {
-    eval_hcp <- evaluate_bimodal_region(res_hcp, y_true)
-  } else {
-    eval_hcp <- evaluate_interval_region(res_hcp, y_true)
-  }
-  
-  # ---------------------------------------------------------------------------
-  # Step 6: Apply DWR
-  # ---------------------------------------------------------------------------
-  res_dwr <- dwr_region(
+  ),
+    evaluate_hcp_finite, y_true, keep_prediction=return_details)
+
+  if ("DWR" %in% method_names) methods$DWR <- run_simulation_method("DWR", function(state) dwr_region(
     dat = dat_sample,
     id_col = "id",
     y_col = "Y",
@@ -206,13 +204,10 @@ run_one_replicate_pointwise <- function(
     train_frac = 0.5,
     quant_method = "linear",
     seed = seed
-  )
-  eval_dwr <- evaluate_interval_region(res_dwr, y_true)
-  
-  # ---------------------------------------------------------------------------
-  # Step 7: Apply LC
-  # ---------------------------------------------------------------------------
-  res_lc <- lc_region(
+  ),
+    evaluate_interval_region, y_true, keep_prediction=return_details)
+
+  if ("LC" %in% method_names) methods$LC <- run_simulation_method("LC", function(state) lc_region(
     dat = dat_sample,
     id_col = "id",
     y_col = "Y",
@@ -225,59 +220,25 @@ run_one_replicate_pointwise <- function(
     quant_method = "linear",
     prop_method = "logistic",
     seed = seed
-  )
-  eval_lc <- evaluate_interval_region(res_lc, y_true)
-  
-  # ---------------------------------------------------------------------------
-  # Step 8: Apply LMEM
-  # ---------------------------------------------------------------------------
-  res_lmem <- lmem_region(
-    dat = dat_sample,
-    id_col = "id",
-    y_col = "Y",
-    delta_col = "delta",
-    x_cols = x_cols,
-    x_test = x_test,
-    y_grid = y_grid,
-    alpha = alpha,
-    fixed_formula = "X1 + X2 + X3 + X4",
-    random_formula = "(1 | id)",
-    n_sims = lmem_n_sims,
-    seed = seed
-  )
-  eval_lmem <- evaluate_interval_region(res_lmem, y_true)
-  
-  # ---------------------------------------------------------------------------
-  # Step 9: Apply Oracle
-  # ---------------------------------------------------------------------------
-  res_oracle <- oracle_region(
-    x_test = x_test,
-    y_grid = y_grid,
-    scenario = scenario,
-    alpha = alpha,
-    B_mc = oracle_B_mc,
-    theta_mean = 2,
-    theta_sd = 1,
-    seed = seed
-  )
-  eval_oracle <- evaluate_interval_region(res_oracle, y_true)
-  
-  # ---------------------------------------------------------------------------
-  # Step 10: Return pointwise results
-  # ---------------------------------------------------------------------------
-  out <- cbind(
-    HCP_cov    = eval_hcp[, "covered"],
-    HCP_len    = eval_hcp[, "length"],
-    DWR_cov    = eval_dwr[, "covered"],
-    DWR_len    = eval_dwr[, "length"],
-    LC_cov     = eval_lc[, "covered"],
-    LC_len     = eval_lc[, "length"],
-    LMEM_cov   = eval_lmem[, "covered"],
-    LMEM_len   = eval_lmem[, "length"],
-    Oracle_cov = eval_oracle[, "covered"],
-    Oracle_len = eval_oracle[, "length"]
-  )
-  
-  rownames(out) <- NULL
+  ),
+    evaluate_interval_region, y_true, keep_prediction=return_details)
+
+  if ("LMEM" %in% method_names) methods$LMEM <- run_simulation_method("LMEM", function(state)
+    lmem_region(dat_sample, x_test, setting = "simulation", alpha = alpha,
+      n_sims = lmem_n_sims, seed = seed, state = state),
+    evaluate_interval_region, y_true, keep_prediction = return_details)
+  if ("Oracle" %in% method_names) methods$Oracle <- run_simulation_method("Oracle", function(state) {
+    state$stage <- "prediction"
+    oracle_region(x_test=x_test, scenario=scenario, alpha=alpha)
+  }, evaluate_oracle_union, y_true, keep_prediction=return_details)
+
+  out <- do.call(cbind, lapply(methods, `[[`, "evaluation"))
+  colnames(out) <- as.vector(rbind(paste0(names(methods), "_cov"), paste0(names(methods), "_len"))); rownames(out) <- NULL
+  attr(out, "method_diagnostics") <- lapply(methods, `[[`, "diagnostics")
+  attr(out, "oracle_diagnostics") <- methods$Oracle$oracle_diagnostics
+  attr(out, "input_metadata") <- list(test_id=test_id, test_rows=nrow(dat_test),
+    seed=seed, n=n, scenario=scenario, rng=RNGkind(), cluster_size_design=cluster_size_design, cluster_sizes=cluster_sizes)
+  if (return_details) attr(out, "details") <- list(train=dat_sample, test=dat_test,
+    y_grid=y_grid, predictions=lapply(methods, `[[`, "prediction"))
   out
 }

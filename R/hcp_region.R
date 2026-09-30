@@ -64,6 +64,8 @@
 #'   \code{\link{fit_propensity_model}}.
 #' @param weight_cap Optional upper bound used to truncate inverse-propensity
 #'   weights for numerical stability. Use \code{Inf} for no truncation.
+#' @param score_observer Optional function receiving fitted score quantities.
+#'   Used by the finite-domain constructor without changing fitting or RNG.
 #' @param ... Additional arguments passed to \code{\link{fit_propensity_model}}.
 #'
 #' @return A list containing:
@@ -108,6 +110,7 @@ hcp_region <- function(
     prop_method = c("logistic", "grf", "boosting"),
     prop_eps = 1e-6,
     weight_cap = Inf,
+    score_observer = NULL,
     ...
 ) {
   
@@ -413,6 +416,7 @@ hcp_region <- function(
     }
     
     R_test_mat <- -dens_te_mat
+    if (!is.null(score_observer)) score_observer("test", environment())
     
     # -------------------------------------------------------------------------
     # Step 3F: Build repeated calibration subsamples
@@ -502,6 +506,7 @@ hcp_region <- function(
     # Step 3H: Aggregate over the B subsamples within this split
     # -------------------------------------------------------------------------
     p_split_arr[s, , ] <- combine_array_firstdim(p_bky, method = combine_B)
+    if (!is.null(score_observer)) score_observer("split", environment())
   }
   
   # ---------------------------------------------------------------------------

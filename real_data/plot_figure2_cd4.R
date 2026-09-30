@@ -1,7 +1,7 @@
 # ============================================================
 # Plot Figure 2
 # Selected CD4 real-data prediction bands
-# HCPclust-repro
+# HCP-repro
 #
 # This script reads the processed CD4 prediction-band data and
 # plots selected subjects for Figure 2 in the paper. The figure
@@ -27,7 +27,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 results_dir <- file.path(repo_dir, "results")
 
 input_file <- file.path(results_dir, "figure2_cd4_band_data.csv")

@@ -125,7 +125,7 @@ run_one_leaveout_cd4 <- function(
       seed = seed
     ),
     
-    DWR = dwr_region_legacy(
+    DWR = dwr_region_realdata(
       dat = dat_sample,
       id_col = "id",
       y_col = "Y",
@@ -144,7 +144,7 @@ run_one_leaveout_cd4 <- function(
       upper_tau = 0.95
     ),
     
-    LC = lc_region_legacy(
+    LC = lc_region_realdata(
       dat = dat_sample,
       id_col = "id",
       y_col = "Y",
@@ -164,20 +164,8 @@ run_one_leaveout_cd4 <- function(
     ),
     
     LMEM = lmem_region(
-      dat = dat_sample,
-      id_col = "id",
-      y_col = "Y",
-      delta_col = "delta",
-      x_cols = x_cols,
-      x_test = x_test,
-      y_grid = y_grid,
-      alpha = alpha_use,
-      fixed_formula = "time + age + smoke + drug + partners + cesd",
-      random_formula = "(1 | id)",
-      level = 1 - alpha_use,
-      n_sims = 1000,
-      pred_which = "full",
-      seed = seed
+      dat = dat_sample, x_test = dat_test, setting = "cd4",
+      alpha = alpha_use, n_sims = 10000L, seed = seed
     )
   )
   

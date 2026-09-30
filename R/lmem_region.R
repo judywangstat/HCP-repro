@@ -1,254 +1,148 @@
 # ============================================================
 # lmem_region.R
-# LMEM-based prediction region
+# Linear mixed-effects prediction for a new subject
+#
+# Simulation: fixed intercept and four fixed slopes, with four independent
+# random slopes and no random intercept. CD4 and gallstones: independent
+# random intercept and time slope, with the dataset-specific fixed effects.
+# Fits use observed responses and REML. Prediction draws include uncertainty
+# in beta, new-subject random effects, and independent residual errors.
 # ============================================================
 
-#' Construct an LMEM-based prediction region using observed clustered data
+#' Collect every random-effect covariance block returned by lmer
+lmem_random_covariance <- function(fit, terms) {
+  G <- matrix(0, length(terms), length(terms), dimnames = list(terms, terms))
+  seen <- character()
+  for (block in lme4::VarCorr(fit)) {
+    block <- as.matrix(block); nm <- rownames(block)
+    if (any(nm %in% seen) || !all(nm %in% terms)) stop("Unexpected random-effect block.")
+    G[nm, nm] <- block; seen <- c(seen, nm)
+  }
+  if (!setequal(seen, terms)) stop("Missing random-effect variance block.")
+  if (any(G[row(G) != col(G)] != 0)) stop("The specified random effects must be independent.")
+  G
+}
+
+#' Square root of a positive semidefinite covariance matrix
+lmem_covariance_root <- function(G, cholesky = FALSE) {
+  G <- (G + t(G)) / 2
+  e <- eigen(G, symmetric = TRUE)
+  tol <- 1e-10 * max(1, max(abs(e$values)))
+  if (any(e$values < -tol)) stop("Covariance is not positive semidefinite.")
+  if (any(e$values < 0)) warning("Tiny negative covariance eigenvalues clipped to zero.")
+  if (cholesky && min(e$values) > tol) return(t(chol(G)))
+  sweep(e$vectors, 2L, sqrt(pmax(e$values, 0)), "*")
+}
+
+#' Fit an LMEM and construct pointwise prediction intervals for a new subject
 #'
-#' @description
-#' This function fits a linear mixed-effects model to the observed clustered data
-#' and constructs prediction intervals for new covariate values using
-#' \code{merTools::predictInterval()}.
-#'
-#' The function is intended to implement the LMEM benchmark under the correctly
-#' specified random-effects model. Only observed outcomes are used for model
-#' fitting.
-#'
-#' @param dat A data frame containing clustered observations.
-#' @param id_col Name of the subject or cluster identifier column.
-#' @param y_col Name of the outcome column.
-#' @param delta_col Name of the missingness indicator column, where 1 indicates
-#'   an observed outcome and 0 indicates a missing outcome.
-#' @param x_cols Character vector giving the names of the covariate columns.
-#' @param x_test New covariate value(s). This can be a numeric vector
-#'   (treated as one test point), or a matrix/data.frame with one row per test point
-#'   and \code{length(x_cols)} columns.
-#' @param y_grid Numeric vector of candidate response values. This is used only
-#'   to convert the model-based prediction interval into a grid-based region for
-#'   consistency with other methods.
-#' @param alpha Miscoverage level in \eqn{(0,1)}.
-#' @param fixed_formula Right-hand side of the fixed-effects formula.
-#' @param random_formula Right-hand side of the random-effects formula.
-#' @param level Optional confidence level for prediction intervals. If \code{NULL},
-#'   it is set to \code{1 - alpha}.
-#' @param n_sims Number of simulations used in \code{merTools::predictInterval()}.
-#' @param pred_which Which uncertainty component to include in
-#'   \code{merTools::predictInterval()}. Default is \code{"random"} to preserve
-#'   the current behavior. Use \code{"full"} for legacy gallstones reproduction.
-#' @param seed Optional random seed.
-#'
-#' @return A list containing:
-#' \describe{
-#'   \item{\code{region}}{A list of prediction regions, one for each row of
-#'   \code{x_test}, represented as subsets of \code{y_grid}.}
-#'   \item{\code{lo_hi}}{A matrix with columns \code{"lo"} and \code{"hi"}
-#'   giving the model-based prediction interval endpoints.}
-#'   \item{\code{p_final}}{\code{NULL}, since LMEM does not produce conformal
-#'   \eqn{p}-values.}
-#'   \item{\code{y_grid}}{The candidate grid used to represent the interval as a region.}
-#' }
-#'
-#' @export
-lmem_region <- function(
-    dat,
-    id_col,
-    y_col = "Y",
-    delta_col = "delta",
-    x_cols,
-    x_test,
-    y_grid,
-    alpha = 0.1,
-    fixed_formula = NULL,
-    random_formula = NULL,
-    level = NULL,
-    n_sims = 1000L,
-    pred_which = "random",
-    seed = NULL
-) {
-  
-  # ---------------------------------------------------------------------------
-  # Step 0: Validate inputs
-  # ---------------------------------------------------------------------------
-  if (!is.data.frame(dat)) {
-    stop("dat must be a data.frame.")
-  }
-  
-  if (!all(c(id_col, y_col, delta_col) %in% names(dat))) {
-    stop("id_col, y_col, and delta_col must all be columns in dat.")
-  }
-  
-  if (!is.character(x_cols) || length(x_cols) < 1L) {
-    stop("x_cols must be a non-empty character vector.")
-  }
-  
-  if (!all(x_cols %in% names(dat))) {
-    stop("Some columns specified in x_cols are missing from dat.")
-  }
-  
-  if (!is.numeric(alpha) || length(alpha) != 1L || !is.finite(alpha) ||
-      alpha <= 0 || alpha >= 1) {
-    stop("alpha must be a single number in (0,1).")
-  }
-  
-  if (is.null(level)) {
-    level <- 1 - alpha
-  }
-  if (!is.numeric(level) || length(level) != 1L || !is.finite(level) ||
-      level <= 0 || level >= 1) {
-    stop("level must be a single number in (0,1).")
-  }
-  
-  n_sims <- as.integer(n_sims)
-  if (!is.finite(n_sims) || n_sims < 1L) {
-    stop("n_sims must be a positive integer.")
-  }
-  
-  if (!is.character(pred_which) || length(pred_which) != 1L ||
-      !pred_which %in% c("full", "fixed", "random", "all")) {
-    stop("pred_which must be one of 'full', 'fixed', 'random', or 'all'.")
-  }
-  
-  y_grid <- as.numeric(y_grid)
-  if (anyNA(y_grid) || any(!is.finite(y_grid))) {
-    stop("y_grid must contain only finite numeric values.")
-  }
-  y_grid <- sort(unique(y_grid))
-  if (length(y_grid) < 2L) {
-    stop("y_grid must contain at least two distinct values.")
-  }
-  
-  if (!is.null(seed)) {
-    set.seed(seed)
-  }
-  
-  # ---------------------------------------------------------------------------
-  # Step 1: Standardize x_test input
-  # ---------------------------------------------------------------------------
-  if (is.vector(x_test) && !is.list(x_test)) {
-    x_test <- matrix(as.numeric(x_test), nrow = 1)
-  } else if (is.data.frame(x_test)) {
-    x_test <- as.matrix(x_test)
+#' @param dat Training subjects, with id, Y, delta and the required covariates.
+#' @param x_test Covariate matrix/data frame for ONE new subject. Gallstones
+#'   additionally requires the original time column, in months.
+#' @param setting One of simulation, cd4 or gallstones.
+#' @param alpha Per-observation miscoverage level. Real-data simultaneous
+#'   prediction uses alpha divided by the held-out subject's observation count.
+#' @param n_sims Predictive draws: 500 for simulations, 10,000 for real data.
+#' @param seed Replicate or held-out-subject seed. Prediction uses the next
+#'   L'Ecuyer stream and restores the caller's RNG state.
+#' @param return_draws Whether to retain the Monte Carlo components.
+#' @param state Optional environment for recording fit/prediction diagnostics.
+#' @return lo_hi, predictive_mean, predictive_covariance and fitting diagnostics.
+#'   Variance components are plug-in estimates. This is not a full bootstrap
+#'   over random-effect or residual variance parameters.
+lmem_region <- function(dat, x_test, setting = c("simulation", "cd4", "gallstones"),
+                        alpha = .1, n_sims = NULL, seed = NULL,
+                        return_draws = FALSE, state = NULL) {
+  setting <- match.arg(setting)
+  simulation <- setting == "simulation"
+  if (is.null(n_sims)) n_sims <- if (simulation) 500L else 10000L
+  if (length(n_sims) != 1L || !is.finite(n_sims) || n_sims < 1L || n_sims != as.integer(n_sims)) stop("Invalid n_sims.")
+  if (length(alpha) != 1L || !is.finite(alpha) || alpha <= 0 || alpha >= 1) stop("Invalid alpha.")
+  test <- as.data.frame(x_test)
+  if (simulation) {
+    if (ncol(test) != 4L) stop("Simulation requires four test covariates.")
+    names(test) <- paste0("X", 1:4)
+    formula <- Y ~ X1 + X2 + X3 + X4 + (0 + X1 + X2 + X3 + X4 || id)
+    terms <- paste0("X", 1:4)
+  } else if (setting == "cd4") {
+    formula <- Y ~ time + age + smoke + drug + partners + cesd + (1 + time || id)
+    terms <- c("(Intercept)", "time")
   } else {
-    x_test <- as.matrix(x_test)
+    if (!"time" %in% names(test)) stop("Gallstones prediction requires time in months.")
+    dat$t <- (dat$time - 6) / 18; test$t <- (test$time - 6) / 18
+    formula <- Y ~ T1 + T2 + T3 + Treat + (1 + t || id)
+    terms <- c("(Intercept)", "t")
   }
-  
-  if (ncol(x_test) != length(x_cols)) {
-    stop("x_test must have length(x_cols) columns.")
+  observed <- dat[dat$delta == 1 & !is.na(dat$Y), , drop = FALSE]
+  if (nrow(observed) < 10L || nrow(test) < 1L) stop("Insufficient observed training or test rows.")
+  observed$id <- factor(observed$id)
+  if (is.null(state)) state <- new.env(parent = emptyenv())
+  state$stage <- "fit"
+  fit <- lme4::lmer(formula, data = observed, REML = TRUE)
+  state$fit <- fit; state$stage <- "prediction"
+  beta <- lme4::fixef(fit)
+  Vbeta <- as.matrix(stats::vcov(fit))[names(beta), names(beta), drop = FALSE]
+  X <- stats::model.matrix(stats::delete.response(stats::terms(lme4::nobars(formula))), test)
+  if (!identical(colnames(X), names(beta))) stop("Fixed-effect design mismatch.")
+  G <- lmem_random_covariance(fit, terms)
+  Z <- if (simulation) as.matrix(test[, terms, drop = FALSE]) else cbind(1, test[[terms[2]]])
+  colnames(Z) <- terms
+  sigma2 <- stats::sigma(fit)^2
+  if (is.null(seed)) seed <- sample.int(.Machine$integer.max, 1L)
+  old_kind <- RNGkind(); had_seed <- exists(".Random.seed", .GlobalEnv, inherits = FALSE)
+  if (had_seed) old_seed <- get(".Random.seed", .GlobalEnv)
+  on.exit({
+    do.call(RNGkind, as.list(old_kind))
+    if (had_seed) assign(".Random.seed", old_seed, .GlobalEnv)
+    else if (exists(".Random.seed", .GlobalEnv, inherits = FALSE)) rm(".Random.seed", envir = .GlobalEnv)
+  }, add = TRUE)
+  RNGkind("L'Ecuyer-CMRG", "Inversion", "Rejection"); set.seed(seed)
+  assign(".Random.seed", parallel::nextRNGStream(get(".Random.seed", .GlobalEnv)), .GlobalEnv)
+  # Retain each experiment's specified normal-draw order and matrix factorization.
+  if (simulation) {
+    beta_z <- matrix(rnorm(n_sims * length(beta)), n_sims, length(beta))
+    b_z <- matrix(rnorm(n_sims * 4L), n_sims, 4L)
+    eps_z <- matrix(rnorm(n_sims * nrow(test)), n_sims, nrow(test))
+    beta_draws <- sweep(beta_z %*% t(lmem_covariance_root(Vbeta)), 2L, beta, "+")
+    b_draws <- b_z %*% t(lmem_covariance_root(G))
+    residual_draws <- sqrt(sigma2) * t(eps_z)
+  } else {
+    beta_draws <- sweep(matrix(rnorm(n_sims * length(beta)), n_sims) %*% chol(Vbeta), 2L, beta, "+")
+    b1 <- rnorm(n_sims)
+    residual_draws <- matrix(rnorm(nrow(X) * n_sims, sd = sqrt(sigma2)), nrow(X), n_sims)
+    b2 <- rnorm(n_sims)
+    b_draws <- cbind(b1, b2) %*% t(lmem_covariance_root(G, cholesky = TRUE))
   }
-  
-  storage.mode(x_test) <- "numeric"
-  colnames(x_test) <- x_cols
-  
-  if (anyNA(x_test) || any(!is.finite(x_test))) {
-    stop("x_test contains NA or non-finite values after coercion.")
+  # Each draw shares one beta and one random-effect vector across the subject.
+  fixed_draws <- X %*% t(beta_draws)
+  random_draws <- Z %*% t(b_draws)
+  y_draws <- fixed_draws + random_draws + residual_draws
+  bounds <- t(apply(y_draws, 1L, stats::quantile, probs = c(alpha / 2, 1 - alpha / 2), names = FALSE, type = 7))
+  colnames(bounds) <- c("lo", "hi")
+  out <- list(lo_hi = bounds, p_final = NULL,
+              predictive_mean = as.vector(X %*% beta),
+              predictive_covariance = X %*% Vbeta %*% t(X) + Z %*% G %*% t(Z) + diag(sigma2, nrow(test)),
+              diagnostics = lmem_fit_diagnostics(fit))
+  if (return_draws) out$draws <- list(y = y_draws, fixed = fixed_draws, random = random_draws,
+    residual = residual_draws, b = b_draws, beta = beta_draws, X = X, Z = Z, G = G, Vbeta = Vbeta, sigma2 = sigma2)
+  out
+}
+
+#' Record singularity, convergence and variance estimates without discarding fits
+lmem_fit_diagnostics <- function(fit) {
+  if (is.null(fit)) return(NULL)
+  V <- as.data.frame(lme4::VarCorr(fit))
+  variances <- setNames(rep(NA_real_, 5L), c("var_intercept", paste0("var_X", 1:4)))
+  for (term in c("(Intercept)", paste0("X", 1:4))) {
+    found <- V$vcov[V$grp != "Residual" & !is.na(V$var1) & V$var1 == term & is.na(V$var2)]
+    if (length(found)) variances[if (term == "(Intercept)") "var_intercept" else paste0("var_", term)] <- sum(found)
   }
-  
-  K <- nrow(x_test)
-  
-  # ---------------------------------------------------------------------------
-  # Helper: Robust binary check for observed outcomes
-  # ---------------------------------------------------------------------------
-  is_delta1 <- function(d_raw) {
-    d_chr <- toupper(trimws(as.character(d_raw)))
-    d_num <- suppressWarnings(as.numeric(d_chr))
-    (!is.na(d_num) & d_num == 1) | (d_chr %in% c("1", "TRUE", "T"))
-  }
-  
-  # ---------------------------------------------------------------------------
-  # Step 2: Restrict to observed data
-  # ---------------------------------------------------------------------------
-  obs_idx <- is_delta1(dat[[delta_col]]) & !is.na(dat[[y_col]])
-  dat_obs <- dat[obs_idx, c(id_col, y_col, x_cols), drop = FALSE]
-  
-  if (nrow(dat_obs) < 10L) {
-    stop("Too few observed outcomes are available for LMEM fitting.")
-  }
-  
-  dat_obs[[id_col]] <- as.factor(dat_obs[[id_col]])
-  
-  # ---------------------------------------------------------------------------
-  # Step 3: Build model formula
-  # ---------------------------------------------------------------------------
-  if (is.null(fixed_formula)) {
-    fixed_formula <- paste(x_cols, collapse = " + ")
-  }
-  
-  if (is.null(random_formula)) {
-    random_formula <- paste0("(1 | ", id_col, ")")
-  }
-  
-  full_formula <- stats::as.formula(
-    paste(y_col, "~", fixed_formula, "+", random_formula)
-  )
-  
-  # ---------------------------------------------------------------------------
-  # Step 4: Fit linear mixed-effects model
-  # ---------------------------------------------------------------------------
-  if (!requireNamespace("lme4", quietly = TRUE)) {
-    stop("Package 'lme4' is required for lmem_region().")
-  }
-  if (!requireNamespace("merTools", quietly = TRUE)) {
-    stop("Package 'merTools' is required for lmem_region().")
-  }
-  
-  fit <- lme4::lmer(
-    formula = full_formula,
-    data = dat_obs,
-    control = lme4::lmerControl(
-      check.conv.singular = lme4::.makeCC(action = "ignore", tol = 1e-4)
-    )
-  )
-  
-  # ---------------------------------------------------------------------------
-  # Step 5: Build test data for a new subject
-  # ---------------------------------------------------------------------------
-  new_group_label <- "__new_subject__"
-  while (new_group_label %in% levels(dat_obs[[id_col]])) {
-    new_group_label <- paste0(new_group_label, "_x")
-  }
-  
-  newdata <- data.frame(rep(new_group_label, K))
-  names(newdata) <- id_col
-  newdata[[id_col]] <- factor(
-    newdata[[id_col]],
-    levels = c(levels(dat_obs[[id_col]]), new_group_label)
-  )
-  
-  x_test_df <- as.data.frame(x_test)
-  colnames(x_test_df) <- x_cols
-  newdata[x_cols] <- x_test_df
-  
-  # ---------------------------------------------------------------------------
-  # Step 6: Construct prediction intervals
-  # ---------------------------------------------------------------------------
-  pred_intervals <- merTools::predictInterval(
-    merMod = fit,
-    newdata = newdata,
-    level = level,
-    n.sims = n_sims,
-    which = pred_which
-  )
-  
-  lo_hi <- cbind(
-    lo = pred_intervals$lwr,
-    hi = pred_intervals$upr
-  )
-  
-  # ---------------------------------------------------------------------------
-  # Step 7: Convert model-based intervals into grid-based regions
-  # ---------------------------------------------------------------------------
-  regions <- vector("list", K)
-  for (k in seq_len(K)) {
-    regions[[k]] <- y_grid[y_grid >= lo_hi[k, "lo"] & y_grid <= lo_hi[k, "hi"]]
-  }
-  
-  # ---------------------------------------------------------------------------
-  # Return final output
-  # ---------------------------------------------------------------------------
-  list(
-    region = regions,
-    lo_hi = lo_hi,
-    p_final = NULL,
-    y_grid = y_grid
-  )
+  messages <- unlist(fit@optinfo$conv$lme4$messages)
+  non_singular <- messages[!grepl("boundary.*singular", messages, ignore.case = TRUE)]
+  optimizer_code <- as.integer(fit@optinfo$conv$opt)
+  if (!length(optimizer_code)) optimizer_code <- 0L
+  list(singular = lme4::isSingular(fit, tol = 1e-4), convergence_messages = messages,
+       non_singular_convergence_messages = non_singular, optimizer_code = optimizer_code,
+       convergence_warning = length(non_singular) > 0L || any(optimizer_code != 0L),
+       variances = variances, residual_variance = stats::sigma(fit)^2, n_observed = nobs(fit))
 }

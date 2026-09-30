@@ -164,3 +164,12 @@ evaluate_bimodal_region <- function(res, y_true) {
     length = length_out
   )
 }
+# Continuous union evaluator for the HPD Oracle. Coverage uses component
+# membership and length sums component measures, without filling the gaps.
+evaluate_oracle_union <- function(res,y_true) {
+  if(is.null(res$oracles)||length(res$oracles)!=length(y_true))
+    stop('One HPD Oracle object is required for each test outcome.')
+  out<-t(vapply(seq_along(y_true),function(k)
+    as.numeric(evaluate_hpd_union(res$oracles[[k]],y_true[k])[1,]),numeric(2)))
+  colnames(out)<-c('covered','length');out
+}

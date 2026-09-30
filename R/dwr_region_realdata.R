@@ -1,23 +1,23 @@
 # ============================================================
-# dwr_region_legacy.R
-# Legacy DWR-style prediction region
+# dwr_region_realdata.R
+# DWR prediction region for real-data analyses
 # ============================================================
 
-#' Construct a legacy DWR-style prediction region
+#' Construct a DWR prediction region for real-data analyses
 #'
 #' @description
-#' Legacy-compatible DWR implementation for gallstones reproduction. For each
+#' DWR implementation for the CD4 and gallstones analyses. For each
 #' test point, this function independently draws one observation per subject,
 #' splits the resulting cross-sectional sample into training and calibration
 #' sets, fits a score model on observed training outcomes, and computes
 #' unweighted conformal p-values.
 #'
 #' @param score_type Nonconformity score type. Use \code{"residual"} for the
-#'   original residual-score DWR, or \code{"quantile"} for a quantile-score
-#'   DWR under the same legacy per-test-point resampling framework.
+#'   residual-score DWR, or \code{"quantile"} for a quantile-score
+#'   DWR under the same per-test-point resampling scheme.
 #'
 #' @export
-dwr_region_legacy <- function(
+dwr_region_realdata <- function(
     dat,
     id_col,
     y_col = "Y",

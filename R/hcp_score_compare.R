@@ -7,7 +7,7 @@
 #' \eqn{R(x,y) = -\hat f(y \mid x)}, while the second uses the residual score
 #' \eqn{R(x,y) = |y - \hat\mu(x)|}.
 #'
-#' This function is intended for reproducing Table S.4 and Table S.5, where the
+#' This function is intended for reproducing Table S.5 and Table S.6, where the
 #' goal is to compare the proposed density-based nonconformity score with a
 #' residual-based score within the same HCP framework.
 #'

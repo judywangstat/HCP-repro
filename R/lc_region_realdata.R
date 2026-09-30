@@ -1,18 +1,16 @@
-#' Construct a legacy LC prediction region for real-data reproduction
+#' Construct an LC prediction region for real-data analyses
 #'
 #' @description
-#' This function implements the legacy LC procedure used for reproducing the
+#' This function implements the LC procedure used for reproducing the
 #' CD4 and gallstones real-data analyses. It adapts an LC-style conformal
 #' prediction method to clustered data with missing outcomes by drawing one
 #' observation per subject, splitting the resulting cross-sectional sample into
 #' training and calibration subsets, and computing weighted conformal
 #' \eqn{p}-values on a candidate response grid.
 #'
-#' Compared with \code{\link{lc_region}}, this legacy version keeps the
-#' real-data reproduction workflow used in the original analysis. In particular,
-#' it supports optional time-matched subsampling for longitudinal real-data
-#' examples and uses an internal legacy implementation of the quantile and
-#' propensity fitting steps.
+#' The real-data procedure supports optional time-matched subsampling for
+#' longitudinal observations and fits conditional quantiles and missingness
+#' propensities on the subsampled training data.
 #'
 #' The procedure consists of the following main steps:
 #' \enumerate{
@@ -68,7 +66,7 @@
 #'   \code{y_grid}.}
 #'   \item{\code{y_grid}}{The candidate grid used in the conformal search.}
 #' }
-lc_region_legacy <- function(
+lc_region_realdata <- function(
     dat,
     id_col,
     y_col = "Y",
@@ -178,7 +176,7 @@ lc_region_legacy <- function(
     list(train = idx_tr, calib = idx_ca)
   }
   
-  fit_propensity_legacy <- function(dat_tr) {
+  fit_propensity_realdata <- function(dat_tr) {
     delta_num <- as.integer(is_delta1(dat_tr[[delta_col]]))
     
     if (length(unique(delta_num)) == 1L) {
@@ -279,7 +277,7 @@ lc_region_legacy <- function(
     }
   }
   
-  fit_quantile_legacy <- function(dat_tr_obs) {
+  fit_quantile_realdata <- function(dat_tr_obs) {
     Y_obs <- as.numeric(dat_tr_obs[[y_col]])
     x_use <- drop_constant_x(dat_tr_obs, x_cols)
     
@@ -380,7 +378,7 @@ lc_region_legacy <- function(
     dat_tr <- dat_sub[sp$train, , drop = FALSE]
     dat_ca <- dat_sub[sp$calib, , drop = FALSE]
     
-    prop_predict <- fit_propensity_legacy(dat_tr)
+    prop_predict <- fit_propensity_realdata(dat_tr)
     
     dtr_obs <- is_delta1(dat_tr[[delta_col]]) & !is.na(dat_tr[[y_col]])
     dat_tr_obs <- dat_tr[dtr_obs, , drop = FALSE]
@@ -389,7 +387,7 @@ lc_region_legacy <- function(
       next
     }
     
-    quant_predict <- fit_quantile_legacy(dat_tr_obs)
+    quant_predict <- fit_quantile_realdata(dat_tr_obs)
     
     p_test <- prop_predict(x_test_one)
     p_test <- pmax(pmin(p_test, 1 - 1e-6), 1e-6)

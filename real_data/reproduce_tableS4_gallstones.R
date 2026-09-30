@@ -1,7 +1,7 @@
 # ============================================================
-# Reproduce Table S.3
+# Reproduce Table S.4
 # Gallstones real-data analysis
-# HCPclust-repro
+# HCP-repro
 #
 # This script reproduces the gallstones real-data results using
 # leave-one-subject-out evaluation. It reports pointwise and
@@ -11,7 +11,7 @@
 #   data/gallstones.txt
 #
 # Output:
-#   results/tableS3_gallstones_results.csv
+#   results/tableS4_gallstones_results.csv
 #
 # Note:
 #   Update repo_dir below to the local path of this repository
@@ -27,7 +27,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 r_dir <- file.path(repo_dir, "R")
 data_dir <- file.path(repo_dir, "data")
 results_dir <- file.path(repo_dir, "results")
@@ -45,8 +45,8 @@ source(file.path(r_dir, "tuning_helpers.R"), chdir = TRUE)
 source(file.path(r_dir, "evaluation_helpers.R"), chdir = TRUE)
 
 source(file.path(r_dir, "hcp_region.R"), chdir = TRUE)
-source(file.path(r_dir, "dwr_region_legacy.R"), chdir = TRUE)
-source(file.path(r_dir, "lc_region_legacy.R"), chdir = TRUE)
+source(file.path(r_dir, "dwr_region_realdata.R"), chdir = TRUE)
+source(file.path(r_dir, "lc_region_realdata.R"), chdir = TRUE)
 source(file.path(r_dir, "lmem_region.R"), chdir = TRUE)
 
 source(file.path(r_dir, "gallstones_data_helpers.R"), chdir = TRUE)
@@ -56,7 +56,7 @@ source(file.path(r_dir, "run_one_leaveout_gallstones.R"), chdir = TRUE)
 # Main runner
 # ------------------------------------------------------------
 
-#' Run gallstones leave-one-subject-out analysis for Table S.3
+#' Run gallstones leave-one-subject-out analysis for Table S.4
 #'
 #' @description
 #' This helper runs the gallstones leave-one-subject-out analysis for pointwise
@@ -68,21 +68,25 @@ source(file.path(r_dir, "run_one_leaveout_gallstones.R"), chdir = TRUE)
 #'   regions.
 #' @param seed Random seed.
 #' @param output_file Path to the output CSV file.
+#' @param subject_indices Optional original sorted subject indices for a small check.
 #'
 #' @return A matrix containing coverage and prediction-region length summaries
 #'   for all methods.
-run_tableS3_gallstones <- function(
+run_tableS4_gallstones <- function(
     num_cores = 4L,
     n_grid = 200,
     seed = 123,
-    output_file = file.path(results_dir, "tableS3_gallstones_results.csv")
+    output_file = file.path(results_dir, "tableS4_gallstones_results.csv"),
+    subject_indices = NULL
 ) {
   data_file <- file.path(data_dir, "gallstones.txt")
   
+  RNGkind("Mersenne-Twister", "Inversion", "Rejection")
   dat <- load_gallstones_data(data_file)
   dat <- impute_gallstones_outcomes(dat, seed = 12345)
   
   test_ids <- sort(unique(dat$id))
+  if (is.null(subject_indices)) subject_indices <- seq_along(test_ids)
   
   run_one_type <- function(prediction_type) {
     alpha_use <- if (prediction_type == "simultaneous") 0.1 / 4 else 0.1
@@ -100,7 +104,7 @@ run_tableS3_gallstones <- function(
     }, add = TRUE)
     
     res_mat <- foreach(
-      ii = seq_along(test_ids),
+      ii = subject_indices,
       .combine = rbind,
       .errorhandling = "pass",
       .export = c(
@@ -114,15 +118,15 @@ run_tableS3_gallstones <- function(
         "make_gallstones_y_grid",
         "impute_gallstones_outcomes",
         "hcp_region",
-        "dwr_region_legacy",
-        "lc_region_legacy",
-        "lmem_region",
+        "dwr_region_realdata",
+        "lc_region_realdata",
+        "lmem_region", "lmem_random_covariance", "lmem_covariance_root", "lmem_fit_diagnostics",
         "fit_cond_density_qp",
         "fit_propensity_model",
         "quantile_levels",
         "evaluate_interval_region"
       ),
-      .packages = c("quantreg", "lme4", "merTools")
+      .packages = c("quantreg", "lme4")
     ) %dopar% {
       test_id <- test_ids[ii]
       
@@ -147,6 +151,7 @@ run_tableS3_gallstones <- function(
       )
     }
     
+    if (is.null(dim(res_mat))) res_mat <- matrix(res_mat, nrow = 1L)
     colnames(res_mat) <- c(
       "HCP_cov", "HCP_len",
       "DWR_cov", "DWR_len",
@@ -177,17 +182,19 @@ run_tableS3_gallstones <- function(
   colnames(final_table) <- c("HCP", "DWR", "LC", "LMEM")
   
   print(final_table)
-  write.csv(final_table, file = output_file, row.names = TRUE)
+  if (!is.null(output_file)) write.csv(final_table, file = output_file, row.names = TRUE)
   
   invisible(final_table)
 }
 
 # ------------------------------------------------------------
-# Run Table S.3 reproduction
+# Run Table S.4 reproduction
 # ------------------------------------------------------------
-tableS3_results <- run_tableS3_gallstones(
+if (sys.nframe() == 0L && "--run" %in% commandArgs(TRUE)) {
+tableS4_results <- run_tableS4_gallstones(
   num_cores = 7,
   n_grid = 200,
   seed = 123,
-  output_file = file.path(results_dir, "tableS3_gallstones_results.csv")
+  output_file = file.path(results_dir, "tableS4_gallstones_results.csv")
 )
+}

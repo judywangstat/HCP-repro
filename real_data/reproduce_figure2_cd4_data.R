@@ -1,7 +1,7 @@
 # ============================================================
 # Reproduce Figure 2 Data
 # CD4 real-data prediction bands
-# HCPclust-repro
+# HCP-repro
 #
 # This script generates leave-one-subject-out prediction bands
 # for the CD4 real-data example.
@@ -27,7 +27,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 r_dir <- file.path(repo_dir, "R")
 data_dir <- file.path(repo_dir, "data")
 results_dir <- file.path(repo_dir, "results")
@@ -46,8 +46,8 @@ source(file.path(r_dir, "tuning_helpers.R"), chdir = TRUE)
 source(file.path(r_dir, "evaluation_helpers.R"), chdir = TRUE)
 
 source(file.path(r_dir, "hcp_region.R"), chdir = TRUE)
-source(file.path(r_dir, "dwr_region_legacy.R"), chdir = TRUE)
-source(file.path(r_dir, "lc_region_legacy.R"), chdir = TRUE)
+source(file.path(r_dir, "dwr_region_realdata.R"), chdir = TRUE)
+source(file.path(r_dir, "lc_region_realdata.R"), chdir = TRUE)
 source(file.path(r_dir, "lmem_region.R"), chdir = TRUE)
 
 # ------------------------------------------------------------
@@ -169,7 +169,7 @@ run_one_cd4_band <- function(
       seed = seed
     ),
     
-    DWR = dwr_region_legacy(
+    DWR = dwr_region_realdata(
       dat = dat_sample,
       id_col = "id",
       y_col = "Y",
@@ -188,7 +188,7 @@ run_one_cd4_band <- function(
       upper_tau = 0.95
     ),
     
-    LC = lc_region_legacy(
+    LC = lc_region_realdata(
       dat = dat_sample,
       id_col = "id",
       y_col = "Y",
@@ -208,20 +208,8 @@ run_one_cd4_band <- function(
     ),
     
     LMEM = lmem_region(
-      dat = dat_sample,
-      id_col = "id",
-      y_col = "Y",
-      delta_col = "delta",
-      x_cols = x_cols,
-      x_test = x_test,
-      y_grid = y_grid,
-      alpha = alpha_use,
-      fixed_formula = "time + age + smoke + drug + partners + cesd",
-      random_formula = "(1 | id)",
-      level = 1 - alpha_use,
-      n_sims = 1000,
-      pred_which = "full",
-      seed = seed
+      dat = dat_sample, x_test = dat_test, setting = "cd4",
+      alpha = alpha_use, n_sims = 10000L, seed = seed
     )
   )
   
@@ -260,9 +248,9 @@ custom_exports <- c(
   "make_cd4_y_grid",
   "evaluate_interval_region",
   "hcp_region",
-  "dwr_region_legacy",
-  "lc_region_legacy",
-  "lmem_region",
+  "dwr_region_realdata",
+  "lc_region_realdata",
+  "lmem_region", "lmem_random_covariance", "lmem_covariance_root", "lmem_fit_diagnostics",
   "fit_cond_density_qp",
   "fit_propensity_model",
   "quantile_levels"
@@ -282,7 +270,7 @@ figure2_data <- foreach(
   .combine = rbind,
   .errorhandling = "pass",
   .export = custom_exports,
-  .packages = c("grf", "quantreg", "lme4", "merTools")
+  .packages = c("grf", "quantreg", "lme4")
 ) %dorng% {
   test_id <- test_ids[ii]
   

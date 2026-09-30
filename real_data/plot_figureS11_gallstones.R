@@ -1,7 +1,7 @@
 # ============================================================
 # Plot Figure S.11
 # Selected Gallstones real-data prediction bands
-# HCPclust-repro
+# HCP-repro
 #
 # This script reads the processed gallstones prediction-band data
 # and plots selected subjects for Figure S.11 in the supplementary
@@ -27,7 +27,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 results_dir <- file.path(repo_dir, "results")
 
 input_file <- file.path(results_dir, "figureS11_gallstones_band_data.csv")

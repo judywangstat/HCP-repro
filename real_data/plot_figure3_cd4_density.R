@@ -1,7 +1,7 @@
 # ============================================================
 # Plot Figure 3
 # CD4 conditional density example
-# HCPclust-repro
+# HCP-repro
 #
 # This script plots the selected CD4 conditional density example:
 #   Subject index = 17
@@ -27,7 +27,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 results_dir <- file.path(repo_dir, "results")
 
 input_file <- file.path(results_dir, "figure3_cd4_density_first100_data.csv")

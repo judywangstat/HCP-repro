@@ -63,8 +63,8 @@ load_gallstones_data <- function(data_file) {
 #' Impute missing gallstones outcomes for evaluation
 #'
 #' @description
-#' Imputes missing outcomes in the gallstones data using the same strategy as the
-#' original reproduction code. A random forest estimates the conditional mean,
+#' Imputes missing outcomes in the gallstones data for evaluation.
+#' A random forest estimates the conditional mean,
 #' and a quantile forest estimates an interquartile-range scale. Missing outcomes
 #' are then filled by adding Gaussian noise to the random-forest prediction.
 #'
@@ -159,8 +159,7 @@ impute_gallstones_outcomes <- function(
 #' Create a response grid for gallstones prediction regions
 #'
 #' @description
-#' Constructs the candidate response grid from the training sample, matching the
-#' original gallstones reproduction code.
+#' Constructs the candidate response grid from the training sample.
 #'
 #' @param dat_sample Training/calibration data after excluding the held-out
 #'   subject.

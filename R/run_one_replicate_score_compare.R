@@ -1,7 +1,7 @@
 #' Run one score-comparison simulation replicate
 #'
 #' @description
-#' Runs one simulation replicate for Table S.4 or Table S.5. The function
+#' Runs one simulation replicate for Table S.5 or Table S.6. The function
 #' generates one clustered dataset, holds out one subject as the test subject,
 #' applies HCP with both density and residual nonconformity scores, and returns
 #' replicate-level coverage and region length.

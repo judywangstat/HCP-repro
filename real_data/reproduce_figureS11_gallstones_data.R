@@ -1,7 +1,7 @@
 # ============================================================
 # Reproduce Figure S.11 Data
 # Gallstones real-data prediction bands
-# HCPclust-repro
+# HCP-repro
 #
 # This script generates the leave-one-subject-out prediction-band
 # data for the gallstones real-data analysis. The saved output is
@@ -28,7 +28,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 r_dir <- file.path(repo_dir, "R")
 data_dir <- file.path(repo_dir, "data")
 results_dir <- file.path(repo_dir, "results")
@@ -46,8 +46,8 @@ source(file.path(r_dir, "tuning_helpers.R"), chdir = TRUE)
 source(file.path(r_dir, "evaluation_helpers.R"), chdir = TRUE)
 
 source(file.path(r_dir, "hcp_region.R"), chdir = TRUE)
-source(file.path(r_dir, "dwr_region_legacy.R"), chdir = TRUE)
-source(file.path(r_dir, "lc_region_legacy.R"), chdir = TRUE)
+source(file.path(r_dir, "dwr_region_realdata.R"), chdir = TRUE)
+source(file.path(r_dir, "lc_region_realdata.R"), chdir = TRUE)
 source(file.path(r_dir, "lmem_region.R"), chdir = TRUE)
 
 source(file.path(r_dir, "gallstones_data_helpers.R"), chdir = TRUE)
@@ -150,7 +150,7 @@ run_one_gallstones_band <- function(
       seed = seed
     ),
     
-    DWR = dwr_region_legacy(
+    DWR = dwr_region_realdata(
       dat = dat_sample,
       id_col = "id",
       y_col = "Y",
@@ -166,7 +166,7 @@ run_one_gallstones_band <- function(
       seed = seed
     ),
     
-    LC = lc_region_legacy(
+    LC = lc_region_realdata(
       dat = dat_sample,
       id_col = "id",
       y_col = "Y",
@@ -184,19 +184,8 @@ run_one_gallstones_band <- function(
     ),
     
     LMEM = lmem_region(
-      dat = dat_sample,
-      id_col = "id",
-      y_col = "Y",
-      delta_col = "delta",
-      x_cols = x_cols,
-      x_test = x_test,
-      y_grid = y_grid,
-      alpha = alpha_use,
-      fixed_formula = "T1 + T2 + T3 + Treat",
-      random_formula = "(1 | id)",
-      n_sims = 1000,
-      pred_which = "full",
-      seed = seed
+      dat = dat_sample, x_test = dat_test, setting = "gallstones",
+      alpha = alpha_use, n_sims = 10000L, seed = seed
     )
   )
   
@@ -228,9 +217,9 @@ custom_exports <- c(
   "run_one_gallstones_band",
   "make_gallstones_y_grid",
   "hcp_region",
-  "dwr_region_legacy",
-  "lc_region_legacy",
-  "lmem_region",
+  "dwr_region_realdata",
+  "lc_region_realdata",
+  "lmem_region", "lmem_random_covariance", "lmem_covariance_root", "lmem_fit_diagnostics",
   "fit_cond_density_qp",
   "fit_propensity_model",
   "quantile_levels",
@@ -251,7 +240,7 @@ figureS11_data <- foreach(
   .combine = rbind,
   .errorhandling = "pass",
   .export = custom_exports,
-  .packages = c("quantreg", "lme4", "merTools")
+  .packages = c("quantreg", "lme4")
 ) %dorng% {
   test_id <- test_ids[ii]
   

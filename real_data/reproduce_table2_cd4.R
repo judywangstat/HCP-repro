@@ -1,7 +1,7 @@
 # ============================================================
 # Reproduce Table 2
 # CD4 real-data analysis
-# HCPclust-repro
+# HCP-repro
 #
 # This script reproduces the CD4 real-data results under two
 # artificial missingness settings: 20% and 50%. It runs
@@ -28,7 +28,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 r_dir <- file.path(repo_dir, "R")
 data_dir <- file.path(repo_dir, "data")
 results_dir <- file.path(repo_dir, "results")
@@ -47,8 +47,8 @@ source(file.path(r_dir, "tuning_helpers.R"), chdir = TRUE)
 source(file.path(r_dir, "evaluation_helpers.R"), chdir = TRUE)
 
 source(file.path(r_dir, "hcp_region.R"), chdir = TRUE)
-source(file.path(r_dir, "dwr_region_legacy.R"), chdir = TRUE)
-source(file.path(r_dir, "lc_region_legacy.R"), chdir = TRUE)
+source(file.path(r_dir, "dwr_region_realdata.R"), chdir = TRUE)
+source(file.path(r_dir, "lc_region_realdata.R"), chdir = TRUE)
 source(file.path(r_dir, "lmem_region.R"), chdir = TRUE)
 
 source(file.path(r_dir, "run_one_leaveout_cd4.R"), chdir = TRUE)
@@ -71,6 +71,7 @@ source(file.path(r_dir, "run_one_leaveout_cd4.R"), chdir = TRUE)
 #'   regions.
 #' @param num_cores Number of parallel workers.
 #' @param seed Random seed.
+#' @param subject_indices Optional original sorted subject indices for a small check.
 #'
 #' @return A data frame with method-level coverage, prediction-region length,
 #'   number of subjects, and number of failed leave-one-subject-out fits.
@@ -81,13 +82,15 @@ run_cd4_table <- function(
     alpha = 0.1,
     n_grid = 200,
     num_cores = 2L,
-    seed = 123
+    seed = 123,
+    subject_indices = NULL
 ) {
   prediction_type <- match.arg(prediction_type)
   missing_rate <- match.arg(as.character(missing_rate), choices = c("20", "50"))
   
   cd4_file <- file.path(data_dir, "CD4_data.txt")
   
+  RNGkind("Mersenne-Twister", "Inversion", "Rejection")
   cd4_dat <- read_cd4_data(cd4_file)
   cd4_dat <- add_cd4_missingness(
     dat = cd4_dat,
@@ -96,6 +99,7 @@ run_cd4_table <- function(
   )
   
   test_ids <- sort(unique(cd4_dat$id))
+  if (is.null(subject_indices)) subject_indices <- seq_along(test_ids)
   
   custom_exports <- c(
     "run_one_leaveout_cd4",
@@ -109,9 +113,9 @@ run_cd4_table <- function(
     "summarize_cd4_leaveout",
     "evaluate_interval_region",
     "hcp_region",
-    "dwr_region_legacy",
-    "lc_region_legacy",
-    "lmem_region",
+    "dwr_region_realdata",
+    "lc_region_realdata",
+    "lmem_region", "lmem_random_covariance", "lmem_covariance_root", "lmem_fit_diagnostics",
     "fit_cond_density_qp",
     "fit_propensity_model",
     "quantile_levels"
@@ -139,7 +143,7 @@ run_cd4_table <- function(
     flush.console()
     
     res_mat <- foreach(
-      ii = seq_along(test_ids),
+      ii = subject_indices,
       .combine = rbind,
       .errorhandling = "pass",
       .export = custom_exports
@@ -168,13 +172,16 @@ run_cd4_table <- function(
       )
     }
     
+    if (is.null(dim(res_mat))) {
+      res_mat <- matrix(res_mat, nrow = 1L, dimnames = list(NULL, names(res_mat)))
+    }
     out_list[[method]] <- data.frame(
       prediction_type = prediction_type,
       missing_rate = missing_rate,
       method = method,
       coverage = mean(res_mat[, "coverage"], na.rm = TRUE),
       length = mean(res_mat[, "length"], na.rm = TRUE),
-      n_subjects = length(test_ids),
+      n_subjects = length(subject_indices),
       n_failed = sum(!stats::complete.cases(res_mat)),
       stringsAsFactors = FALSE
     )
@@ -186,6 +193,7 @@ run_cd4_table <- function(
 # ------------------------------------------------------------
 # Run Table 2
 # ------------------------------------------------------------
+if (sys.nframe() == 0L && "--run" %in% commandArgs(TRUE)) {
 methods <- c("HCP", "DWR", "LC", "LMEM")
 missing_settings <- c("20", "50")
 
@@ -231,3 +239,4 @@ write.csv(
 )
 
 print(table2_results)
+}

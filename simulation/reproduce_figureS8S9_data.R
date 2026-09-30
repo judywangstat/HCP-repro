@@ -1,6 +1,6 @@
 # ============================================================
 # Reproduce Figure S.8 and Figure S.9 Data
-# HCPclust-repro
+# HCP-repro
 #
 # This script generates simulation data for Figure S.8 and
 # Figure S.9. The two figures evaluate the sensitivity of HCP
@@ -24,7 +24,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 r_dir <- file.path(repo_dir, "R")
 results_dir <- file.path(repo_dir, "results")
 

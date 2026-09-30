@@ -9,7 +9,7 @@
 #' prediction-region length.
 #'
 #' The function is intended for simulation studies such as the reproduction of
-#' Table S.1 and Figure S.7. In contrast to \code{run_one_replicate()}, which
+#' Table S.2 and Figure S.7. In contrast to \code{run_one_replicate()}, which
 #' reports average pointwise coverage over the held-out subject, this function
 #' reports whether all test observations from the held-out subject are covered
 #' simultaneously.

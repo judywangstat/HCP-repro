@@ -255,7 +255,7 @@ run_one_replicate_local <- function(
   for (j in seq_len(length(x3_breaks) - 1L)) {
     for (i in seq_len(length(x2_breaks) - 1L)) {
       
-      # Match the old implementation: both endpoints are included.
+      # Both endpoints are included.
       idx <- which(
         eval_df$X2 >= x2_breaks[i] &
           eval_df$X2 <= x2_breaks[i + 1L] &

@@ -148,6 +148,8 @@ generate_missing_indicator <- function(X, beta) {
 #' the intercept.
 #' @param seed Optional random seed.
 #'
+#' @param covariate_generator Covariate helper; Table S.1 supplies its
+#'   five-time-value generator. The default is the balanced simulation helper.
 #' @return A data frame in long format with columns `id`, `time_index`, `Y`,
 #' `delta`, and generated covariates.
 generate_simulation_data <- function(
@@ -159,7 +161,8 @@ generate_simulation_data <- function(
     x_mean = rep(0, 4),
     x_sigma = diag(1, 4),
     beta = c(3, 0, 2, 2, 2),
-    seed = NULL
+    seed = NULL,
+    covariate_generator = generate_subject_covariates
 ) {
   
   scenario <- match.arg(scenario)
@@ -181,7 +184,7 @@ generate_simulation_data <- function(
   for (i in seq_len(n)) {
     
     # covariates
-    X_i <- generate_subject_covariates(m[i], x_mean, x_sigma)
+    X_i <- covariate_generator(m[i], x_mean, x_sigma)
     
     # handle Bimo-fix
     theta_i <- theta[i, ]

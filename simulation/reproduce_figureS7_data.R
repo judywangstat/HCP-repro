@@ -1,6 +1,6 @@
 # ============================================================
 # Reproduce Figure S.7 Data
-# HCPclust-repro
+# HCP-repro
 #
 # This script generates simulation data for Figure S.7.
 # It evaluates simultaneous prediction performance of HCP as
@@ -30,7 +30,7 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------
 # User-adjustable paths
 # ------------------------------------------------------------
-repo_dir <- normalizePath("~/Desktop/HCPclust-repro", mustWork = TRUE)
+repo_dir <- normalizePath(Sys.getenv("HCP_REPO_DIR", "."), mustWork = TRUE)
 r_dir <- file.path(repo_dir, "R")
 results_dir <- file.path(repo_dir, "results")
 
